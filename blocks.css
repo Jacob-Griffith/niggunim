@@ -1,0 +1,493 @@
+/*
+  Blocks
+  ------
+  A page is a list of rows. Each row holds one box.
+
+    <div class="row w50 center"> <div class="box"> … </div> </div>
+
+  Width:  w33 | w50 | w66 | w100
+  Side:   (none) = left | right | center
+  Tuck:   tuck = pull up 150px beside the block above.
+          Only on an image block that follows a larger image on the opposite side.
+  Gap:    gap-x3 = three blank lines' worth of space above, instead of one.
+  Size:   img-lg = image larger than standard (currently 72.5% larger).
+
+  Image box:     <img …>
+  Carousel box:  <div class="carousel"><img …><img …></div>  (dots are added by blocks.js)
+*/
+
+@font-face {
+  font-family: "Ink Garamond";
+  src: url("fonts/InkGaramond-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+html {
+  font-size: 14px;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  background: #fff;
+  color: #141311;
+  font-family: "Ink Garamond", Garamond, serif;
+  font-size: 22px;
+  line-height: 1.227;
+  font-feature-settings: "calt" 1;
+}
+
+/* Page: the left 75% of the screen; the right 25% holds the player */
+
+main {
+  width: 75%;
+  margin: 0 25% 0 0;
+  padding-bottom: 8rem; /* two blank lines after the last paragraph */
+}
+
+/* Masthead: the title as a banner spanning the page column. Along its bottom,
+   "Repetition, time, and lineage" on the left and the credits on the right,
+   both at the credits' size. As you scroll it shrinks into the top left corner
+   until it's gone, in step with picture 01 fading: blocks.js sets --p from
+   0 (banner) to 1 (gone). The line along the bottom fades out by halfway.
+   Fixed, so blocks.js puts a hidden copy (.masthead-space) at the top of
+   <main> to hold its place.
+   --title: "Niggunim" is 3.91em wide, so this fills the column's inner width. */
+
+.masthead,
+.masthead-space {
+  --p: 0;
+  --title: calc((75vw - 5px - 5rem) / 3.91);
+  box-sizing: border-box;
+  width: calc((75% - 5px) * (1 - var(--p)));
+}
+
+.masthead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: #fff;
+}
+
+.masthead-space {
+  visibility: hidden;
+}
+
+.masthead.is-gone {
+  visibility: hidden;
+}
+
+.masthead h1,
+.masthead-space h1 {
+  margin: 0;
+  padding: calc(1.5rem * (1 - var(--p))) calc(2.5rem * (1 - var(--p))) 0;
+  font-size: calc(var(--title) * (1 - var(--p)));
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.masthead .foot,
+.masthead-space .foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  max-height: calc(4em * (1 - var(--p)));
+  overflow: hidden;
+  padding: calc(0.5rem * (1 - var(--p))) calc(2.5rem * (1 - var(--p))) calc(2rem * (1 - var(--p)));
+  font-size: 18px;
+  white-space: nowrap;
+  opacity: calc(1 - 2 * var(--p));
+}
+
+.foot p {
+  margin: 0;
+}
+
+.masthead .credits,
+.masthead-space .credits {
+  text-align: right;
+}
+
+.credits p {
+  margin: 0;
+}
+
+.credits a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+.credits a:hover {
+  color: #8a867c;
+}
+
+.masthead .line-across {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  margin: 0;
+  opacity: calc(1 - 2 * var(--p));
+}
+
+/* Lines that draw themselves: 2px, warm near-black, 1.5s.
+   line-down drops from the top (the right edge of the 75% column, fixed);
+   line-across grows from the left. */
+
+/* Each line is a 2px stripe in the middle of a 10px element,
+   so the ink filter has room to spread either side. */
+
+.line-down {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: linear-gradient(to right, transparent 4px, rgb(38, 38, 30) 4px 6px, transparent 6px);
+  filter: url(#ink-line);
+  pointer-events: none;
+  z-index: 2;
+  transform-origin: top;
+  animation: line-down 1.5s ease both;
+}
+
+.line-down.right { right: calc(25% - 5px); }
+
+.line-across {
+  height: 10px;
+  margin: -4px 0;
+  background: linear-gradient(to bottom, transparent 4px, rgb(38, 38, 30) 4px 6px, transparent 6px);
+  filter: url(#ink-line);
+  transform-origin: left;
+  animation: line-across 1.5s ease both;
+}
+
+@keyframes line-down {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+@keyframes line-across {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Player: the right margin, outside the right line, the full length of the page.
+   Play/pause and time stick to the top; the waveform runs down the whole
+   page beneath them, time running down, so you scroll to reach the end.
+   Two copies of the waveform: faint for what's to come, full ink for
+   what's been played, revealed from the top by clip-path. */
+
+.player {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 25%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 2rem;
+  font-size: 18px;
+}
+
+.player .controls {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 2rem 0 1.5rem;
+  background: #fff;
+}
+
+.player .play {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-feature-settings: "calt" 1;
+  color: #141311;
+  cursor: pointer;
+}
+
+.player .time {
+  color: #6f6c63;
+  font-variant-numeric: tabular-nums;
+}
+
+.wave {
+  position: relative;
+  flex: 1;
+  width: 36%;
+  cursor: pointer;
+  touch-action: none;
+  transform-origin: top;
+  animation: line-down 1.5s ease both;
+}
+
+.wave:focus-visible {
+  outline: 1px solid #141311;
+  outline-offset: 8px;
+}
+
+.wave .rest,
+.wave .played {
+  position: absolute;
+  inset: 0;
+}
+
+.wave svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: url(#ink-wave);
+}
+
+.wave .peak { opacity: 0.07; }
+.wave .rms  { opacity: 0.2; }
+.wave .played .peak { opacity: 0.28; }
+.wave .played .rms  { opacity: 1; }
+
+/* Hover: a hairline and the time under the pointer */
+
+.wave .cursor {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  height: 1px;
+  background: #141311;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.wave .cursor span {
+  position: absolute;
+  right: 0;
+  bottom: 4px;
+  font-size: 14px;
+  color: #141311;
+  font-variant-numeric: tabular-nums;
+}
+
+.wave:hover .cursor {
+  visibility: visible;
+}
+
+/* Rows and boxes */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.row > .box {
+  box-sizing: border-box;
+  padding: 2rem 2.5rem;
+}
+
+.w33 > .box  { width: 33.333%; }
+.w50 > .box  { width: 50%; }
+.w66 > .box  { width: 66.666%; }
+.w100 > .box { width: 100%; }
+
+.right  { flex-direction: row-reverse; }
+.center { justify-content: center; }
+
+.tuck {
+  margin-top: -150px;
+  pointer-events: none;
+}
+
+.tuck > .box {
+  pointer-events: auto;
+}
+
+/* One blank line between paragraphs is the box padding (2rem + 2rem).
+   Three blank lines adds two more of the same. */
+.gap-x3 {
+  margin-top: 8rem;
+}
+
+/* Text */
+
+.box p {
+  margin: 0;
+  text-align: left;
+}
+
+.box h1 {
+  margin: 0;
+  font-size: 78px;
+  font-weight: 400;
+  text-align: center;
+}
+
+/* Images: never cropped, each keeps its own shape */
+
+.box img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Images sit at 85% of their box, on the box's side; picture 01 at 59.5%, centred */
+
+.box > img,
+.box > .carousel {
+  width: 85%;
+}
+
+.right .box > img,
+.right .box > .carousel {
+  margin-left: auto;
+}
+
+.w100 .box > img {
+  width: 59.5%;
+  margin: 0 auto;
+}
+
+/* img-lg: this block's image 72.5% larger than the standard 85% */
+.img-lg .box > img {
+  width: 146.625%;
+}
+
+/* Carousel: slides stacked in one cell and faded */
+
+.carousel .slides {
+  display: grid;
+  align-items: start;
+}
+
+.carousel .slides > img {
+  grid-area: 1 / 1;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 300ms ease, visibility 0s linear 300ms;
+}
+
+.carousel .slides > img.is-active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 300ms ease, visibility 0s;
+}
+
+.carousel .dots {
+  display: flex;
+  gap: 0.5em;
+}
+
+.carousel .dots button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-feature-settings: "calt" 1;
+  color: #ccc;
+  cursor: pointer;
+}
+
+.carousel .dots button:hover {
+  color: #8a867c;
+}
+
+.carousel .dots button[aria-current="true"] {
+  color: #141311;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line-down,
+  .line-across,
+  .wave {
+    animation: none;
+  }
+
+  .carousel .slides > img,
+  .carousel .slides > img.is-active {
+    transition: none;
+  }
+}
+
+/* Small screens: everything stacks full width, in order, with no tuck */
+
+@media (max-width: 800px) {
+  main {
+    width: 100%;
+    margin: 0;
+  }
+
+  .line-down {
+    display: none;
+  }
+
+  .row > .box,
+  .box > img,
+  .box > .carousel,
+  .w100 .box > img,
+  .img-lg .box > img {
+    width: 100%;
+  }
+
+  .tuck {
+    margin-top: 0;
+  }
+
+  /* The masthead stays a banner at the top of the page, in the flow */
+  .masthead,
+  .masthead.is-gone {
+    --p: 0 !important;
+    --title: calc((100vw - 5rem) / 3.91);
+    position: static;
+    width: auto;
+    visibility: visible;
+  }
+
+  .masthead .foot {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .masthead-space {
+    display: none;
+  }
+
+  .masthead .line-across {
+    position: static;
+    margin: -4px 0;
+  }
+
+  /* No margin to hold the waveform: play and time sit in a small bar, bottom right */
+  .player {
+    position: fixed;
+    top: auto;
+    width: auto;
+    padding: 0;
+  }
+
+  .player .controls {
+    position: static;
+    flex-direction: row;
+    gap: 0.75em;
+    padding: 0.4em 0.9em;
+  }
+
+  .wave {
+    display: none;
+  }
+}

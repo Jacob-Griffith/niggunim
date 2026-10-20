@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Niggunim</title>
+<link rel="preload" href="fonts/InkGaramond-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="blocks.css">
+</head>
+<body>
+<!-- Ink filter for the lines: the font's recipe (Font/ink.json) at 26px.
+     Blur, vary the weight with noise, add grit, then threshold.
+     Last, slow noise fades the ink in patches along the line. Not used on text. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="ink-line" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="0.744" result="blur"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.171" numOctaves="2" seed="3" result="varRaw"/>
+    <feColorMatrix in="varRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="varNoise"/>
+    <feComposite in="blur" in2="varNoise" operator="arithmetic" k1="0.2" k2="0.9" k3="0" k4="0" result="varied"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.131" numOctaves="1" seed="11" result="gritRaw"/>
+    <feColorMatrix in="gritRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="gritNoise"/>
+    <feComposite in="varied" in2="gritNoise" operator="arithmetic" k1="0.44" k2="0.78" k3="0" k4="0" result="gritty"/>
+    <feComponentTransfer in="gritty" result="shape">
+      <feFuncA type="linear" slope="8" intercept="-2.38"/>
+    </feComponentTransfer>
+    <feFlood flood-color="rgb(38,38,30)"/>
+    <feComposite in2="shape" operator="in" result="inked"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.006" numOctaves="2" seed="7" result="fadeRaw"/>
+    <feColorMatrix in="fadeRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="fadeNoise"/>
+    <feComponentTransfer in="fadeNoise" result="fade">
+      <feFuncA type="linear" slope="2.5" intercept="-0.5"/>
+    </feComponentTransfer>
+    <feComposite in="inked" in2="fade" operator="in"/>
+  </filter>
+  <!-- Ink for the waveform: the line's edge, plus a printed inside: mottled density,
+       a solid rim, crisp grain and pinholes. Tuned in Waveform/playground.html. -->
+  <filter id="ink-wave" x="-50%" y="-1%" width="200%" height="102%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="0.75" result="blur"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.171" numOctaves="2" seed="3" result="varRaw"/>
+    <feColorMatrix in="varRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="varNoise"/>
+    <feComposite in="blur" in2="varNoise" operator="arithmetic" k1="0.2" k2="0.9" k3="0" k4="0" result="varied"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.131" numOctaves="1" seed="11" result="gritRaw"/>
+    <feColorMatrix in="gritRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="gritNoise"/>
+    <feComposite in="varied" in2="gritNoise" operator="arithmetic" k1="0.44" k2="0.78" k3="0" k4="0" result="gritty"/>
+    <feComponentTransfer in="gritty" result="shape">
+      <feFuncA type="linear" slope="8" intercept="-2.38"/>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.0063 0.025" numOctaves="3" seed="5" result="mottleRaw"/>
+    <feColorMatrix in="mottleRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="mottleA"/>
+    <feComponentTransfer in="mottleA" result="mottleNoise">
+      <feFuncA type="linear" slope="3" intercept="-1"/>
+    </feComponentTransfer>
+    <feComposite in="mottleNoise" in2="mottleNoise" operator="arithmetic" k1="0" k2="0.35" k3="0" k4="0.65" result="density"/>
+    <feGaussianBlur in="shape" stdDeviation="2.5" result="shapeWide"/>
+    <feComposite in="shape" in2="shapeWide" operator="arithmetic" k1="-1" k2="1" k3="0" k4="0" result="rim"/>
+    <feComposite in="density" in2="rim" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="densityRim"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.625" numOctaves="2" seed="23" result="grainRaw"/>
+    <feColorMatrix in="grainRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="grainNoise"/>
+    <feComposite in="densityRim" in2="grainNoise" operator="arithmetic" k1="0" k2="4" k3="-2" k4="-1.1" result="cover"/>
+    <feComposite in="cover" in2="shape" operator="in" result="covered"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.4545" numOctaves="1" seed="17" result="speckRaw"/>
+    <feColorMatrix in="speckRaw" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="speckA"/>
+    <feComponentTransfer in="speckA" result="specks">
+      <feFuncA type="linear" slope="12" intercept="-9.204"/>
+    </feComponentTransfer>
+    <feComposite in="covered" in2="specks" operator="out" result="inkAlpha"/>
+    <feFlood flood-color="#141311"/>
+    <feComposite in2="inkAlpha" operator="in"/>
+  </filter>
+</svg>
+<div class="line-down right" aria-hidden="true"></div>
+<!-- Player: the mix runs down the right margin. Waveform drawn by blocks.js
+     from audio/waveform.json (made by Waveform/gen.py). -->
+<aside class="player" aria-label="Listen">
+  <div class="controls">
+    <button type="button" class="play">play</button>
+    <span class="time">0:00</span>
+  </div>
+  <div class="wave" role="slider" tabindex="0" aria-label="Position in the mix" data-src="audio/waveform.json"></div>
+  <audio src="audio/mix.m4a" preload="metadata"></audio>
+</aside>
+<!-- Masthead: the title as a banner across the page column. As you scroll it
+     shrinks away into the top left, in step with picture 01 fading (blocks.js). -->
+<header class="masthead">
+  <h1>Niggunim</h1>
+  <div class="foot">
+    <p class="under">Repetition, time, and lineage</p>
+    <div class="credits">
+      <p>Words and selection by J.Glyn Griffith</p>
+      <p><a href="https://noodsradio.com/residents/musical-diasporas" target="_blank" rel="noopener">Musical Diasporas on Noods Radio</a></p>
+    </div>
+  </div>
+  <div class="line-across" aria-hidden="true"></div>
+</header>
+<main>
+  <div class="portal">
+    <div class="row w100">
+      <div class="box">
+        <img src="images/01-cover-piano.jpg" width="1581" height="1080" alt="Cover piano" fetchpriority="high">
+      </div>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>Niggunim are a form of Jewish hymn developed in the 18th century by Ashkenazi Jewish communities in Eastern Europe. They are often wordless and sung over and over again, with no clear beginning or end. You fall into a cycle of repetition, wordless musical journeys that go on repeatedly, which, as intended by the rabbis and mystics that created them, seek to place the singer in a state of deep prayer; the melodies a medium to transcend the physical world and enter into conversation with God.</p>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>They were passed down generations, accompanying communities and their stories, decorating their lives, giving their dreams colour. The niggunim I will be playing were passed down by my great-grandfather, who lived in Jerusalem whilst it was under Ottoman rule before moving to New York City. It was during this time in Jerusalem that he encountered strands of Jewish life from across the world, each carrying their own musical traditions and lineages. The melodies we will hear were shaped by generations of life in places across Europe and the Middle East.</p>
+    </div>
+  </div>
+  <div class="row w66 right">
+    <div class="box">
+      <div class="carousel" aria-label="Molly, and Molly and Pnina">
+        <img src="images/02-molly.jpg" width="904" height="666" alt="Molly" loading="lazy" decoding="async">
+        <img src="images/03-molly-pnina.jpg" width="1518" height="1035" alt="Molly and Pnina" loading="lazy" decoding="async">
+      </div>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>These songs are a way I can interact with my Grandma, who passed away some years ago after a long battle with dementia, which caused her personality to slowly fade away. I find that the wordless cycles I will be playing have the special quality of being able to capture her being, and the generations of life and community that preceded her. In doing all this, and in being passed down to me, these hymns preserve and cultivate a sense of Jewishness inherently personal to me and my lineage.</p>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>As a Jew in the present day everyone external to me seems to try and dictate who I am and what I stand for. A genocide of the Palestinians is carried out in my name. It is presented as a valiant fight for the preservation of the Jewish people. It is legitimised as a divinely ordained act in service of the generations before us, as a fight against the antisemitism that has plagued us for centuries.</p>
+    </div>
+  </div>
+  <div class="row w50">
+    <div class="box">
+      <img src="images/04-porto.jpg" width="1429" height="1832" alt="Porto" loading="lazy" decoding="async">
+    </div>
+  </div>
+  <div class="row w50 right tuck">
+    <div class="box">
+      <img src="images/05-famo.jpeg" width="1379" height="1285" alt="Famo" loading="lazy" decoding="async">
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>These songs which I will play trace my family and narrate their story. I play them to reject the genocidal acts done in my name, to reclaim my identity, my Jewishness, from those who use it to legitimise their own senseless violence.</p>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>Repetition</p>
+      <p>The songs give us that heavy feeling in the heart which, for no rational reason, seems to put us at ease, calm our bodies and minds, even if nothing visible in our lives has changed. In this sense, they act upon our internal world, help us and enable us to separate ourselves from the physical plane we exist in and transcend somewhere else, somewhere more peaceful than here. This feeling helps us grow roots; in a world where time flies by and seizes us uncontrollably, rips up our identity and ways of existing, a cycle of precarity and being on the edge, constantly outside, constantly becoming, one foot in one foot out, in a moment of a journey but never arriving, things never settling and remaining in wild motion like rides at a travelling funfair. The cogs keep on moving, and this journeying to a never found destination seems like an endless cycle where time supplants us, where we lose track of time and sink into cyclical travelling. So the music which repeats over and over, intentionally and continuously without an end, yet to conclude, never to conclude, keeping us in a state of transition, discordance, a thesis and antithesis never to reach synthesis, a tension, never resolved, just like the music. And so the music comforts us, is powerful and spiritual, a force allowing us to feel secure in this sorry state of difference and movement; we are tired, our bones ache, our mind in pain, we feel as if we either cannot go on or instead grow numb to our surroundings so as to soften the pain, lower the intensity, but the endless repetition of those niggunim may let us confront reality directly, a medium through which we may fall in love with this transitory state, find peace within it.</p>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>The melodies float lightly in this ether of becoming; is this state just pain and rootlessness? Or are these melodies an emergence of the divine, are they timeless and permanent, anchoring us down. Words confine us to our external reality while these melodies break us out of it. Oh Lord, don’t let us be weighed down by things which are fixed, which begin and end, start and become something new, let us not tussle with our instability but instead find peace within this mess.</p>
+    </div>
+  </div>
+  <div class="row w33 img-lg">
+    <div class="box">
+      <img src="images/06-docs.jpeg" width="1391" height="1600" alt="Docs" loading="lazy" decoding="async">
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>Through repetition we transform spiritually. Each cycle the same story is told, same journey embarked upon, we go again and again. It seems to glide and be still at once, refraining from categorisation, not revealing too much of the newfound landscapes it is giving us a window into, not taking the listener anywhere outside the short loop it offers us; there are no lyrics to tell a story or communicate feelings, no section along which the song is structured, it doesn’t have a clear start or end, but just exists for a period of time and then passes by. In repetition we must exist in the moment of the cycle and find transformation in its unfinalised state. We must embrace states of disbecoming, precarity, uncertainty, weakness, in the moment of the present.</p>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>In these moments I want to walk endlessly with a calm breeze at night when it’s quiet and lonely, I want to be in solitude with the music and let it take me away, I want to float away on the water down the canal, to feel free and glide, to dissolve into the landscapes etched into the music, into the soft light that peers through the windows of canalside flats, into the stillness of everything, into the uneven cracks in the concrete, semi paved path I stroll on, I want to hang in the air like the echoes of private conversations taking place nearby, I want to break away into the shifting patterns of the water below, self organised movement of endless fragments of light and water ripples and the breeze and shimmer all coming together, to sing with the wind chimes which guard this space from devious minds and rest sombrely when there are no gusts of air giving them movement, I want to look into the sky extending forever before me and search for meaning in its darkness and find God’s open palm in its stillness</p>
+    </div>
+  </div>
+  <div class="row w50 right">
+    <div class="box">
+      <img src="images/07-book.jpeg" width="1093" height="1600" alt="Book" loading="lazy" decoding="async">
+    </div>
+  </div>
+  <div class="row w50 tuck">
+    <div class="box">
+      <div class="carousel" aria-label="Treasures of ideas and thoughts, and study">
+        <img src="images/08a-treasures-of-ideas-and-thoughts.jpeg" width="775" height="801" alt="Treasures of ideas and thoughts" loading="lazy" decoding="async">
+        <img src="images/08b-study.jpeg" width="892" height="883" alt="Study" loading="lazy" decoding="async">
+      </div>
+    </div>
+  </div>
+  <div class="row w50 center">
+    <div class="box">
+      <p>Time passes by like the empty friendships I made with people who only exist when at distance, who live in refrain and who make it clear they are separate from I, in a different world with different timescapes to I, that our hearts do not beat in the same rhythm, that our eyes perceive something different, that their time proceeds as if it were a different life in itself, we stand two feet on the same ground and I look in your direction but my gaze does not reach you and my words float by your ears like the clouds passing above us. Time is not unifying. Time tears me away from myself. Time tells me I am becoming, in a process of change, yet to grow into my possible selves, it assures me that I am the legions of clashing personalities which engage in war within, it enables me to be multiple faculties locked in conflict.</p>
+    </div>
+  </div>
+</main>
+<script src="blocks.js"></script>
+</body>
+</html>
