@@ -61,6 +61,7 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
   if (!masthead || !portal || !main || !first) return;
 
   var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var phone = window.matchMedia("(max-width: 800px)");
   var ticking = false;
 
   var space = masthead.cloneNode(true);
@@ -77,8 +78,11 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
     var p = Math.min(Math.max(progress, 0), 1);
     if (still) p = window.scrollY > 100 ? 1 : 0;
     else portal.style.opacity = String(1 - p);
-    masthead.style.setProperty("--p", p.toFixed(4));
-    masthead.classList.toggle("is-gone", p === 1);
+    // On a phone the masthead stays put: leave its style alone while scrolling.
+    if (!phone.matches) {
+      masthead.style.setProperty("--p", p.toFixed(4));
+      masthead.classList.toggle("is-gone", p === 1);
+    }
     ticking = false;
   }
 
@@ -94,7 +98,11 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
   step();
 })();
 
-// Player: waveform down the right margin, played part in full ink.
+// Player: waveform down the right margin, played part in full ink. On a
+// phone it's a bar along the bottom instead, time running across: a six minute
+// window of the mix that slides past a fixed playhead in the middle, the
+// played part to its left. The bar is drawn on a canvas, just the visible six
+// minutes each frame: the SVG ink filter is far too slow to move every frame.
 // Audio is self-hosted: audio/mix.m4a, 128 kbps AAC (under GitHub's 100 MB
 // file limit). Seeking needs a server with range requests, e.g. npx http-server.
 
@@ -111,9 +119,15 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
   var cursor = document.createElement("div");
   var cursorTime = document.createElement("span");
   var duration = 0;
-  var shownPx = -1;
+  var shown = null;
+  var preview = null;
+  var bar = document.createElement("canvas");
+  var barPeak = [];
+  var barRms = [];
   var target = 0;
   var SVG = "http://www.w3.org/2000/svg";
+  var phone = window.matchMedia("(max-width: 800px)");
+  var WINDOW = 360;
 
   rest.className = "rest";
   played.className = "played";
@@ -122,6 +136,8 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
   wave.appendChild(rest);
   wave.appendChild(played);
   wave.appendChild(cursor);
+  bar.className = "bar";
+  wave.appendChild(bar);
 
   function format(seconds) {
     var s = Math.floor(seconds);
@@ -149,6 +165,17 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
     return svg;
   }
 
+  // The phone bar shows six minutes at a time: half the detail is plenty.
+  // Keep the loudest of each run.
+  function fewer(values, count) {
+    var out = [];
+    var size = values.length / count;
+    for (var i = 0; i < count; i++) {
+      out.push(Math.max.apply(null, values.slice(Math.floor(i * size), Math.floor((i + 1) * size))));
+    }
+    return out;
+  }
+
   fetch(wave.dataset.src)
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -157,26 +184,108 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
         layer.appendChild(outline(data.peak, "peak"));
         layer.appendChild(outline(data.rms, "rms"));
       });
+      barPeak = fewer(data.peak, data.peak.length / 2);
+      barRms = fewer(data.rms, data.rms.length / 2);
+      shown = null;
       update();
     });
 
-  // Reveal the played part. Only touch the clip when it moves a whole pixel,
-  // so the ink filter isn't redrawn more than it needs to be.
+  // Margin: reveal the played part down to the playhead. Phone: redraw the
+  // bar. While a finger drags the bar, show where it would land instead.
   function update() {
-    var t = audio.currentTime;
-    var px = duration ? Math.round((t / duration) * wave.clientHeight) : 0;
+    var t = preview === null ? audio.currentTime : preview;
     time.textContent = format(t) + (duration ? " / " + format(duration) : "");
     wave.setAttribute("aria-valuemax", String(Math.round(duration)));
     wave.setAttribute("aria-valuenow", String(Math.round(t)));
     wave.setAttribute("aria-valuetext", format(t));
-    if (px !== shownPx) {
-      shownPx = px;
-      played.style.clipPath = "inset(0 -50% " + (wave.clientHeight - px) + "px -50%)";
+    if (phone.matches) draw(t);
+    else reveal(t);
+  }
+
+  // Only touch the clip when it moves a whole pixel, so the ink filter isn't
+  // redrawn more than it needs to be.
+  function reveal(t) {
+    var length = wave.clientHeight;
+    var px = duration ? Math.round((t / duration) * length) : 0;
+    if (px === shown) return;
+    shown = px;
+    played.style.clipPath = "inset(0 -50% " + (length - px) + "px -50%)";
+  }
+
+  // Ink for the bar: the margin's colour and layers, without its printed
+  // texture (the filter that makes it is what's too slow).
+  var INK = "20, 19, 17";
+  var LAYERS = [
+    { values: function () { return barPeak; }, alpha: 0.1, played: 0.25 },
+    { values: function () { return barRms; }, alpha: 0.28, played: 0.8 }
+  ];
+
+  function draw(t) {
+    var n = barRms.length;
+    if (!n || !duration) return;
+    var dpr = window.devicePixelRatio || 1;
+    var w = wave.clientWidth;
+    var h = wave.clientHeight;
+    if (bar.width !== Math.round(w * dpr) || bar.height !== Math.round(h * dpr)) {
+      bar.width = Math.round(w * dpr);
+      bar.height = Math.round(h * dpr);
     }
+    var c = bar.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+
+    // One point per pixel, read off the data between its samples.
+    var start = t - WINDOW / 2;
+    var perPx = WINDOW / w;
+    function at(values, x) {
+      var f = ((start + x * perPx) / duration) * n;
+      if (f < 0 || f > n - 1) return null;
+      var i = Math.floor(f);
+      var v = values[i] + (values[Math.min(i + 1, n - 1)] - values[i]) * (f - i);
+      return (v / 1000) * (h / 2);
+    }
+
+    function shape(values) {
+      var top = [];
+      for (var x = 0; x <= w; x++) {
+        var half = at(values, x);
+        if (half !== null) top.push([x, half]);
+      }
+      if (!top.length) return false;
+      c.beginPath();
+      top.forEach(function (p, i) { c[i ? "lineTo" : "moveTo"](p[0], h / 2 - p[1]); });
+      for (var i = top.length - 1; i >= 0; i--) c.lineTo(top[i][0], h / 2 + top[i][1]);
+      c.closePath();
+      return true;
+    }
+
+    LAYERS.forEach(function (layer) {
+      if (!shape(layer.values())) return;
+      c.fillStyle = "rgba(" + INK + ", " + layer.alpha + ")";
+      c.fill();
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, w / 2, h);
+      c.clip();
+      shape(layer.values());
+      c.fillStyle = "rgba(" + INK + ", " + layer.played + ")";
+      c.fill();
+      c.restore();
+    });
+  }
+
+  // While playing on a phone, redraw every frame so the bar glides.
+  function glide() {
+    if (audio.paused || !phone.matches) return;
+    draw(preview === null ? audio.currentTime : preview);
+    window.requestAnimationFrame(glide);
   }
 
   function timeAt(e) {
     var box = wave.getBoundingClientRect();
+    if (phone.matches) {
+      return audio.currentTime + ((e.clientX - box.left) / box.width - 0.5) * WINDOW;
+    }
     return Math.min(Math.max((e.clientY - box.top) / box.height, 0), 1) * duration;
   }
 
@@ -191,9 +300,13 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
     else audio.pause();
   });
 
-  audio.addEventListener("play", function () { button.textContent = "pause"; });
+  audio.addEventListener("play", function () {
+    button.textContent = "pause";
+    window.requestAnimationFrame(glide);
+  });
   audio.addEventListener("pause", function () { button.textContent = "play"; });
   audio.addEventListener("timeupdate", update);
+  audio.addEventListener("seeking", update);
 
   // A server without range requests (e.g. python -m http.server) can't seek:
   // the audio snaps back to the start. Say so, rather than fail quietly.
@@ -204,25 +317,70 @@ document.querySelectorAll(".carousel").forEach(function (carousel) {
   });
   audio.addEventListener("loadedmetadata", function () {
     duration = audio.duration;
+    shown = null;
     update();
   });
-  // The waveform is as long as the page, which grows as images load.
+  // The waveform is as long as the page, which grows as images load; the
+  // phone bar changes width when the phone turns.
   new ResizeObserver(function () {
-    shownPx = -1;
+    shown = null;
     update();
   }).observe(wave);
 
-  // Click or drag on the waveform to move through the mix.
+  // Margin: click or drag on the waveform to move through the mix. On a
+  // touchscreen it's also where you scroll, so a finger seeks on a tap only.
+  // Phone bar: tap to jump to that point, or drag the waveform along like tape.
+  // A drag only moves the picture; the audio jumps once, when you let go, as
+  // each jump has to fetch that part of the file.
+  var pointerType = "mouse";
+  var drag = null;
+
   wave.addEventListener("pointerdown", function (e) {
+    pointerType = e.pointerType;
+    if (phone.matches) {
+      wave.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, t: audio.currentTime, moved: false };
+      return;
+    }
+    if (pointerType === "touch") return;
     wave.setPointerCapture(e.pointerId);
     seek(timeAt(e));
   });
 
+  wave.addEventListener("click", function (e) {
+    if (pointerType === "touch" && !phone.matches) seek(timeAt(e));
+  });
+
   wave.addEventListener("pointermove", function (e) {
+    if (drag) {
+      var dx = e.clientX - drag.x;
+      if (Math.abs(dx) > 6) drag.moved = true;
+      if (drag.moved) {
+        preview = Math.min(Math.max(drag.t - (dx / wave.clientWidth) * WINDOW, 0), duration);
+        update();
+      }
+      return;
+    }
+    if (phone.matches) return;
     var box = wave.getBoundingClientRect();
     cursor.style.top = (e.clientY - box.top) + "px";
     cursorTime.textContent = format(timeAt(e));
     if (wave.hasPointerCapture(e.pointerId)) seek(timeAt(e));
+  });
+
+  wave.addEventListener("pointerup", function (e) {
+    if (drag) {
+      var to = drag.moved ? preview : timeAt(e);
+      drag = null;
+      preview = null;
+      seek(to);
+    }
+  });
+
+  wave.addEventListener("pointercancel", function () {
+    drag = null;
+    preview = null;
+    update();
   });
 
   // Arrow keys step 10 seconds, Page Up/Down a minute, Home/End the ends.

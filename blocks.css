@@ -257,6 +257,9 @@ main {
   filter: url(#ink-wave);
 }
 
+/* The phone bar's canvas (blocks.js); hidden in the margin */
+.wave .bar { display: none; }
+
 .wave .peak { opacity: 0.07; }
 .wave .rms  { opacity: 0.2; }
 .wave .played .peak { opacity: 0.28; }
@@ -424,16 +427,28 @@ main {
   }
 }
 
-/* Small screens: everything stacks full width, in order, with no tuck */
+/* Small screens: everything stacks full width, in order, with no tuck; text,
+   padding and the masthead get smaller to suit, and the masthead stays a
+   banner at the top, in the flow. The player becomes a bar along the bottom:
+   play, time, then the waveform running across. */
 
 @media (max-width: 800px) {
+  body {
+    font-size: 17px;
+  }
+
   main {
     width: 100%;
     margin: 0;
+    padding-bottom: 10rem; /* clear of the player bar */
   }
 
   .line-down {
     display: none;
+  }
+
+  .row > .box {
+    padding: 1.5rem 1.25rem;
   }
 
   .row > .box,
@@ -448,19 +463,37 @@ main {
     margin-top: 0;
   }
 
-  /* The masthead stays a banner at the top of the page, in the flow */
+  .gap-x3 {
+    margin-top: 5rem;
+  }
+
   .masthead,
   .masthead.is-gone {
     --p: 0 !important;
-    --title: calc((100vw - 5rem) / 3.91);
+    --title: calc((100vw - 2.5rem) / 3.91 * 0.92);
     position: static;
     width: auto;
     visibility: visible;
   }
 
+  .masthead h1 {
+    padding: 1.75rem 1.25rem 0;
+  }
+
+  /* The line and the credits on rows of their own, with room between */
   .masthead .foot {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+    max-height: none;
+    padding: 1rem 1.25rem 1.5rem;
+    font-size: 14px;
+    line-height: 1.35;
     white-space: normal;
+  }
+
+  .masthead .credits p + p {
+    margin-top: 0.15rem;
   }
 
   .masthead-space {
@@ -472,22 +505,58 @@ main {
     margin: -4px 0;
   }
 
-  /* No margin to hold the waveform: play and time sit in a small bar, bottom right */
   .player {
     position: fixed;
     top: auto;
+    left: 0;
     width: auto;
-    padding: 0;
+    z-index: 3;
+    align-items: stretch;
+    padding: 0.5rem 1.25rem calc(0.6rem + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid rgba(38, 38, 30, 0.25);
+    font-size: 14px;
   }
 
   .player .controls {
     position: static;
     flex-direction: row;
-    gap: 0.75em;
-    padding: 0.4em 0.9em;
+    justify-content: space-between;
+    width: auto;
+    padding: 0 0 0.35rem;
   }
 
+  /* Six minutes of the mix, sliding left past the playhead in the middle */
   .wave {
+    flex: none;
+    width: auto;
+    height: 64px;
+    overflow: hidden;
+    touch-action: none;
+    transform-origin: left;
+    animation-name: line-across;
+  }
+
+  .wave .rest,
+  .wave .played,
+  .wave .cursor {
     display: none;
+  }
+
+  .wave .bar {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .wave::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: rgba(38, 38, 30, 0.5);
+    pointer-events: none;
   }
 }
